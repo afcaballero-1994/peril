@@ -3,8 +3,6 @@ package main
 import (
 	"fmt"
 	"log"
-	"os"
-	"os/signal"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
@@ -30,8 +28,35 @@ func main() {
 		log.Fatalf("Could not bind connection: %v", err)
 	}
 
-	signalChan := make(chan os.Signal, 1)
-	signal.Notify(signalChan, os.Interrupt)
-	<-signalChan
-	log.Println("\n Shutting down Connection")
+	gs:= gamelogic.NewGameState(uname)
+	for {
+		inuser := gamelogic.GetInput()
+		command := inuser[0]
+
+		switch command {
+		case "spawn":
+			err = gs.CommandSpawn(inuser)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+		case "move":
+			_, err = gs.CommandMove(inuser)
+			if err != nil {
+				fmt.Println(err)
+				continue
+			}
+		case "status":
+			gs.CommandStatus()
+		case "help":
+			gamelogic.PrintClientHelp()
+		case "spam":
+			log.Println("Spamming not allowed yet")
+		case "quit":
+			gamelogic.PrintQuit()
+			return
+		default:
+			fmt.Println("Command unknown")
+		}
+	}
 }
