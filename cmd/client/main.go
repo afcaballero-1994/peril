@@ -22,11 +22,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("Could not get username: %v", err)
 	}
-	_, _, err = pubsub.DeclareAndBind(conn, routing.ExchangePerilDirect,
+	_, qu, err := pubsub.DeclareAndBind(conn, routing.ExchangePerilDirect,
 		routing.PauseKey+"."+uname, routing.PauseKey, pubsub.Transient)
 	if err != nil {
 		log.Fatalf("Could not bind connection: %v", err)
 	}
+	fmt.Printf("Queu %v declared and bound!\n", qu.Name)
 
 	gs:= gamelogic.NewGameState(uname)
 	for {

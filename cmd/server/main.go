@@ -28,7 +28,14 @@ func main() {
 		log.Printf("Error: %v", err)
 	}
 	gamelogic.PrintServerHelp()
-	loop: for {
+	_, qu, err := pubsub.DeclareAndBind(cotion, routing.ExchangePerilTopic, routing.GameLogSlug,
+		routing.GameLogSlug+".*", pubsub.Durable)
+	if err != nil {
+		log.Fatalf("could not subscribe to queue: %v", err)
+	}
+	fmt.Printf("Queue %v declared and bound!\n", qu.Name)
+loop:
+	for {
 		inuser := gamelogic.GetInput()
 		command := inuser[0]
 		switch command {
@@ -50,8 +57,8 @@ func main() {
 		default:
 			log.Println("Unknown Command")
 		}
-		
+
 	}
-	
+
 	log.Println("\n Shutting down Connection")
 }
