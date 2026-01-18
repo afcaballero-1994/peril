@@ -58,9 +58,11 @@ func DeclareAndBind(
 	}
 	qu, err := ch.QueueDeclare(queueName, dur, autoDelete,
 		exclusive, false, nil)
-	err = ch.QueueBind(queueName, key, exchange, false, nil)
+	
+	err = ch.QueueBind(qu.Name, key, exchange, false, nil)
+	
 	if err != nil {
-		return &amqp091.Channel{}, amqp091.Queue{}, err
+		return nil, amqp091.Queue{}, fmt.Errorf("could not bind queu: %v", err)
 	}
 	return ch, qu, nil
 }
