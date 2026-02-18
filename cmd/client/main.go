@@ -20,7 +20,6 @@ func main() {
 	defer conn.Close()
 	fmt.Println("Peril game client connected to rabbit")
 
-	
 	publishCh, err := conn.Channel()
 	if err != nil {
 		log.Fatalf("could not create channel: %v", err)
@@ -30,7 +29,6 @@ func main() {
 		log.Fatalf("Could not get username: %v", err)
 	}
 
-	
 	gs := gamelogic.NewGameState(uname)
 	err = pubsub.SubscribeJSON(
 		conn,
@@ -40,7 +38,7 @@ func main() {
 		pubsub.Transient,
 		handlerMove(gs),
 	)
-	
+
 	err = pubsub.SubscribeJSON(conn, routing.ExchangePerilDirect,
 		routing.PauseKey+"."+gs.GetUsername(),
 		routing.PauseKey, pubsub.Transient, handlerPause(gs))
@@ -91,16 +89,25 @@ func main() {
 	}
 }
 
-func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) {
-	return func(ps routing.PlayingState) {
+func handlerPause(gs *gamelogic.GameState) func(routing.PlayingState) pubsub.Acktype {
+	return func(ps routing.PlayingState) pubsub.Acktype {
 		defer fmt.Print("> ")
 		gs.HandlePause(ps)
+		return pubsub.Ack
 	}
 }
 
-func handlerMove(gs *gamelogic.GameState) func(gamelogic.ArmyMove) {
-	return func(move gamelogic.ArmyMove) {
+func handlerMove(gs *gamelogic.GameState) func(gamelogic.ArmyMove) pubsub.Acktype {
+	return func(move gamelogic.ArmyMove) pubsub.Acktype {
 		defer fmt.Print("> ")
-		gs.HandleMove(move)
+		out := gs.HandleMove(move)
+		switch out {
+		case gamelogic.MoveOutComeSafe, gamelogic.MoveOutcomeMakeWar:
+			return pubsub.Ack
+		case gamelogic.MoveOutcomeSamePlayer:
+			return pubsub.NackDiscard
+		default:
+			return pubsub.NackDiscard
+		}
 	}
 }
