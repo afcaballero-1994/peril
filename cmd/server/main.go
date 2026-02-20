@@ -24,9 +24,6 @@ func main() {
 		log.Fatalf("Error creating channel: %v", err)
 	}
 
-	if err != nil {
-		log.Printf("Error: %v", err)
-	}
 	gamelogic.PrintServerHelp()
 	_, qu, err := pubsub.DeclareAndBind(cotion, routing.ExchangePerilTopic, routing.GameLogSlug,
 		routing.GameLogSlug+".*", pubsub.Durable)
