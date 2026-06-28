@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"time"
 
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/gamelogic"
 	"github.com/bootdotdev/learn-pub-sub-starter/internal/pubsub"
@@ -51,7 +52,7 @@ func main() {
 		"war",
 		routing.WarRecognitionsPrefix+".*",
 		pubsub.Durable,
-		handlerWar(gs),
+		handlerWar(gs, publishCh),
 	)
 
 	for {
@@ -136,25 +137,74 @@ func handlerMove(gs *gamelogic.GameState, ch *amqp091.Channel) func(gamelogic.Ar
 	}
 }
 
-func handlerWar(gs *gamelogic.GameState) func(gamelogic.RecognitionOfWar) pubsub.Acktype {
+func handlerWar(gs *gamelogic.GameState, ch *amqp091.Channel) func(gamelogic.RecognitionOfWar) pubsub.Acktype {
 
 	return func(rw gamelogic.RecognitionOfWar) pubsub.Acktype {
 		defer fmt.Print("> ")
-		out, _, _ := gs.HandleWar(rw)
+		out, winner, loser := gs.HandleWar(rw)
+		var message string
 		switch out {
 		case gamelogic.WarOutcomeNotInvolved:
 			return pubsub.NackRequeue
 		case gamelogic.WarOutcomeNoUnits:
 			return pubsub.NackDiscard
 		case gamelogic.WarOutcomeOpponentWon:
-			return pubsub.Ack
+			message = fmt.Sprintf("{%s} won a war against {%s}\n", winner, loser)
+			err := printGob(
+				ch,
+				message,
+				gs.GetUsername(),
+				rw.Attacker.Username,
+			)
+			if err != nil {
+				return pubsub.NackRequeue
+			} else {
+				return pubsub.Ack
+			}
+			
 		case gamelogic.WarOutcomeYouWon:
-			return pubsub.Ack
+			message = fmt.Sprintf("{%s} won a war against {%s}\n", winner, loser)
+			err := printGob(
+				ch,
+				message,
+				gs.GetUsername(),
+				rw.Attacker.Username,
+			)
+			if err != nil {
+				return pubsub.NackRequeue
+			} else {
+				return pubsub.Ack
+			}
 		case gamelogic.WarOutcomeDraw:
-			return pubsub.Ack
+			message = fmt.Sprintf("A war between {%s} and {%s} resulted in a draw\n", winner, loser)
+			err := printGob(
+				ch,
+				message,
+				gs.GetUsername(),
+				rw.Attacker.Username,
+			)
+			if err != nil {
+				return pubsub.NackRequeue
+			} else {
+				return pubsub.Ack
+			}
 		default:
 			fmt.Println("Error: no valid outcome")
 			return pubsub.NackDiscard
 		}
 	}
+}
+
+func printGob(ch *amqp091.Channel, message, user, attacker string) error{
+	data := routing.GameLog{
+		CurrentTime: time.Now(),
+		Message: message,
+		Username: user,
+	}
+	log.Printf(message)
+	err := pubsub.PublishGob(ch,
+		routing.ExchangePerilTopic,
+		routing.GameLogSlug + "." + attacker,
+		data)
+	return err
 }
