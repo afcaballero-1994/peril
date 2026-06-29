@@ -10,6 +10,15 @@ import (
 	"github.com/rabbitmq/amqp091-go"
 )
 
+func writesLog(gl routing.GameLog) pubsub.Acktype {
+	defer fmt.Println("> ")
+	err := gamelogic.WriteLog(gl)
+	if err != nil {
+		return pubsub.NackRequeue
+	}
+	return pubsub.Ack
+}
+
 func main() {
 	const connectionString string = "amqp://guest:guest@localhost:5672/"
 	cotion, err := amqp091.Dial(connectionString)
@@ -25,12 +34,18 @@ func main() {
 	}
 
 	gamelogic.PrintServerHelp()
-	_, qu, err := pubsub.DeclareAndBind(cotion, routing.ExchangePerilTopic, routing.GameLogSlug,
+	_, qu, err := pubsub.DeclareAndBind(cotion,
+		routing.ExchangePerilTopic, routing.GameLogSlug,
 		routing.GameLogSlug+".*", pubsub.Durable)
 	if err != nil {
 		log.Fatalf("could not subscribe to queue: %v", err)
 	}
 	fmt.Printf("Queue %v declared and bound!\n", qu.Name)
+	pubsub.SubscribeGob(cotion,
+		routing.ExchangePerilTopic,
+		routing.GameLogSlug,
+		routing.GameLogSlug + ".*", pubsub.Durable,
+	writesLog)
 loop:
 	for {
 		inuser := gamelogic.GetInput()

@@ -6,6 +6,7 @@ import (
 	"encoding/gob"
 	"encoding/json"
 	"fmt"
+	"log"
 
 	"github.com/rabbitmq/amqp091-go"
 )
@@ -123,15 +124,51 @@ func SubscribeJSON[T any](conn *amqp091.Connection, exchange, queueName, key str
 			switch handler(data) {
 			case Ack:
 				a.Ack(false)
-				fmt.Println("Ack")
 			case NackDiscard:
 				a.Nack(false, false)
-				fmt.Println("nackdiscard")
 			case NackRequeue:
 				a.Nack(false, true)
-				fmt.Println("nacrequeue")
 			}
 		}
 	}()
+	return nil
+}
+
+func SubscribeGob[T any](conn *amqp091.Connection,
+	exchange, queueName, key string,
+	queueType SimpleQueueType, handler func(T) Acktype) error {
+		
+	var buf bytes.Buffer
+
+	dec := gob.NewDecoder(&buf)
+
+	ch, queue, err := DeclareAndBind(conn, exchange, queueName, key, queueType)
+	if err != nil {
+		return err
+	}
+
+	cc, err := ch.Consume(queue.Name, "", false, false, false, false, nil)
+	if err != nil {
+		return err
+	}
+		go func() {
+			defer ch.Close()
+			for a := range cc {
+				var data T
+				err = dec.Decode(data)
+				if err != nil {
+					log.Printf("Could not decode gob data: %v\n", err)
+				}
+				switch handler(data) {
+				case Ack:
+					a.Ack(false)
+				case NackDiscard:
+					a.Nack(false, false)
+				case NackRequeue:
+					a.Nack(false, true)
+				}
+			}
+		} ()
+	
 	return nil
 }
