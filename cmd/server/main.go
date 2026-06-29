@@ -11,7 +11,7 @@ import (
 )
 
 func writesLog(gl routing.GameLog) pubsub.Acktype {
-	defer fmt.Println("> ")
+	defer fmt.Printf("> ")
 	err := gamelogic.WriteLog(gl)
 	if err != nil {
 		return pubsub.NackRequeue
@@ -34,18 +34,15 @@ func main() {
 	}
 
 	gamelogic.PrintServerHelp()
-	_, qu, err := pubsub.DeclareAndBind(cotion,
-		routing.ExchangePerilTopic, routing.GameLogSlug,
-		routing.GameLogSlug+".*", pubsub.Durable)
-	if err != nil {
-		log.Fatalf("could not subscribe to queue: %v", err)
-	}
-	fmt.Printf("Queue %v declared and bound!\n", qu.Name)
-	pubsub.SubscribeGob(cotion,
+
+	err = pubsub.SubscribeGob(cotion,
 		routing.ExchangePerilTopic,
 		routing.GameLogSlug,
 		routing.GameLogSlug + ".*", pubsub.Durable,
-	writesLog)
+		writesLog)
+	if err != nil {
+		log.Fatalf("could not start consuming logs: %v\n", err)
+	}
 loop:
 	for {
 		inuser := gamelogic.GetInput()

@@ -154,7 +154,6 @@ func handlerWar(gs *gamelogic.GameState, ch *amqp091.Channel) func(gamelogic.Rec
 				ch,
 				message,
 				gs.GetUsername(),
-				rw.Attacker.Username,
 			)
 			if err != nil {
 				return pubsub.NackRequeue
@@ -168,7 +167,6 @@ func handlerWar(gs *gamelogic.GameState, ch *amqp091.Channel) func(gamelogic.Rec
 				ch,
 				message,
 				gs.GetUsername(),
-				rw.Attacker.Username,
 			)
 			if err != nil {
 				return pubsub.NackRequeue
@@ -181,7 +179,6 @@ func handlerWar(gs *gamelogic.GameState, ch *amqp091.Channel) func(gamelogic.Rec
 				ch,
 				message,
 				gs.GetUsername(),
-				rw.Attacker.Username,
 			)
 			if err != nil {
 				return pubsub.NackRequeue
@@ -195,7 +192,7 @@ func handlerWar(gs *gamelogic.GameState, ch *amqp091.Channel) func(gamelogic.Rec
 	}
 }
 
-func printGob(ch *amqp091.Channel, message, user, attacker string) error{
+func printGob(ch *amqp091.Channel, message, user string) error{
 	data := routing.GameLog{
 		CurrentTime: time.Now(),
 		Message: message,
@@ -204,7 +201,7 @@ func printGob(ch *amqp091.Channel, message, user, attacker string) error{
 	log.Printf(message)
 	err := pubsub.PublishGob(ch,
 		routing.ExchangePerilTopic,
-		routing.GameLogSlug + "." + attacker,
+		routing.GameLogSlug + "." + user,
 		data)
 	return err
 }

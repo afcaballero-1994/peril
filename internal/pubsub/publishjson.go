@@ -44,6 +44,10 @@ func PublishGob[T any](ch *amqp091.Channel, exchange, key string, val T) error{
 			Body: buf.Bytes()},
 	)
 
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
@@ -137,10 +141,6 @@ func SubscribeJSON[T any](conn *amqp091.Connection, exchange, queueName, key str
 func SubscribeGob[T any](conn *amqp091.Connection,
 	exchange, queueName, key string,
 	queueType SimpleQueueType, handler func(T) Acktype) error {
-		
-	var buf bytes.Buffer
-
-	dec := gob.NewDecoder(&buf)
 
 	ch, queue, err := DeclareAndBind(conn, exchange, queueName, key, queueType)
 	if err != nil {
@@ -153,9 +153,13 @@ func SubscribeGob[T any](conn *amqp091.Connection,
 	}
 		go func() {
 			defer ch.Close()
+			
+
 			for a := range cc {
 				var data T
-				err = dec.Decode(data)
+				buf := bytes.NewBuffer(a.Body)
+				dec := gob.NewDecoder(buf)
+				err = dec.Decode(&data)
 				if err != nil {
 					log.Printf("Could not decode gob data: %v\n", err)
 				}
