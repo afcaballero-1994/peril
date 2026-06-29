@@ -43,9 +43,13 @@ func main() {
 	if err != nil {
 		log.Fatalf("could not start consuming logs: %v\n", err)
 	}
+
 loop:
 	for {
 		inuser := gamelogic.GetInput()
+		if len(inuser) == 0 {
+			continue
+		}
 		command := inuser[0]
 		switch command {
 		case "pause":
